@@ -1,0 +1,161 @@
+### Django Signals - Brief Answers with Explanations  
+
+#### 1. Are Django signals synchronous or asynchronous by default? 
+Answer: Synchronous.  
+
+Why? 
+
+- Signal receivers run immediately in the same thread, blocking further execution until they finish.  
+Proof: 
+
+python
+#CODE-->
+
+from django.dispatch import Signal, receiver
+
+signal = Signal()
+
+@receiver(signal)
+def slow_receiver(**kwargs):
+    print("Start (sleeping 2 secs)")
+    import time
+    time.sleep(2)  # Blocks execution
+    print("End")
+
+print("Before signal")
+signal.send(sender=None)  # Waits for receiver
+print("After signal")  # Prints only after sleep
+```  
+Output:
+Before signal  
+Start (sleeping 2 secs)  
+End  
+After signal  # <- Proves sync behavior
+
+---
+
+2. Do signals run in the same thread as the caller?
+
+Answer: Yes.  
+Why? 
+
+- No background threads are spawned; the receiver runs in the caller’s thread.  
+Proof: 
+
+python
+#CODE-->
+
+import threading
+from django.dispatch import Signal, receiver
+
+signal = Signal()
+
+@receiver(signal)
+def log_thread(**kwargs):
+    print(f"Receiver thread: {threading.current_thread().name}")
+
+print(f"Caller thread: {threading.current_thread().name}")
+signal.send(sender=None)
+```  
+**Output:**  
+```
+Caller thread: MainThread  
+Receiver thread: MainThread  # <- Same thread
+```  
+
+---
+
+#### 3. Do signals run in the same database transaction as the caller?**  
+Answer: Yes.  
+Why? 
+- Signals inherit the active transaction. If the caller is in a transaction, the receiver is too.  
+Proof:
+
+```python
+
+
+from django.db import transaction
+from django.dispatch import Signal, receiver
+
+signal = Signal()
+
+@receiver(signal)
+def check_transaction(**kwargs):
+    from django.db import connection
+    print(f"In transaction? {connection.in_atomic_block}")
+
+with transaction.atomic():
+    print("Caller in transaction: True")
+    signal.send(sender=None)
+```  
+Output:
+```
+Caller in transaction: True  
+In transaction? True  # <- Same transaction
+```  
+
+---
+
+### Python `Rectangle` Class - GitHub Summary  
+```markdown
+# Iterable Rectangle Class  
+
+A minimal `Rectangle` class that:  
+1. Takes `length` and `width` (integers) at initialization.  
+2. Is **iterable**—yields `{'length': value}` first, then `{'width': value}`.  
+
+### Usage:  
+```python
+
+rect = Rectangle(5, 3)
+for dim in rect:
+    print(dim)
+```  
+Output:
+```python
+{'length': 5}  
+{'width': 3}  
+```  
+
+### Key Logic:  
+- Implements `__iter__` to return a generator.  
+- Simple, dependency-free, and extensible.  
+
+**Use Case:**  
+- Learning custom iterables in Python.  
+- Modeling geometric shapes with structured data access.  
+```  
+
+Explanation:  
+- The class uses Python’s iteration protocol (`__iter__`) to control what’s yielded during iteration.  
+- Each iteration step returns a dictionary for clarity.  
+
+### **Django Signals - Key Facts**  
+
+1. **Synchronous Execution**  
+   - Signals run **immediately** when triggered, blocking further code until all receivers finish.  
+   - *Example:* A slow receiver (e.g., with `time.sleep(2)`) delays the caller.  
+
+2. **Same Thread as Caller**  
+   - Receivers execute in the **same thread** (e.g., `MainThread`), no background threading by default.  
+
+3. **Same Database Transaction**  
+   - If the caller is in a transaction (e.g., `transaction.atomic()`), signal receivers **inherit it**.  
+
+---
+
+### **Python `Rectangle` Class - Overview**  
+A simple iterable class that:  
+- Initializes with `length` and `width` (integers).  
+- Iteration yields `{'length': value}` first, then `{'width': value}`.  
+- **Use Case:** Learn custom iterables or model geometric data cleanly.  
+
+```python
+rect = Rectangle(5, 3)
+for dim in rect:  # Output: {'length': 5}, then {'width': 3}
+    print(dim)
+```  
+
+**Why?**  
+- Demonstrates Python’s `__iter__` protocol.  
+- No dependencies—pure Python.
